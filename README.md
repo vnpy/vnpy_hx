@@ -22,7 +22,7 @@
 直接使用pip命令：
 
 ```bash
-pip install vnpy_ctp
+pip install vnpy_huoxiang
 ```
 
 下载源代码后，解压后在cmd中运行：

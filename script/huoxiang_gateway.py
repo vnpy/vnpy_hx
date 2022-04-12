@@ -44,18 +44,17 @@ from vnpy_websocket import WebsocketClient
 CHINA_TZ: timezone = timezone("Asia/Shanghai")
 
 # REST API地址
-# REST_HOST: str = "https://demotrade.alphazone-data.cn"
-REST_HOST: str = "http://139.224.34.155:52223"
+REST_HOST: str = "https://demotrade.alphazone-data.cn"
 
 # Websocket API地址
 PUBLIC_WEBSOCKET_HOST: str = "wss://demotrade.alphazone-data.cn/ws"
 
 # 商品类型映射
-PRODUCTTYPE_VT2HUOXIANG = {
+PRODUCTTYPE_VT2HUOXIANG: dict = {
     Product.FOREX: "FOREX"
 }
 
-PRODUCTTYPE_HUOXIANG2VT = {v: k for k, v in PRODUCTTYPE_VT2HUOXIANG.items()}
+PRODUCTTYPE_HUOXIANG2VT: dict = {v: k for k, v in PRODUCTTYPE_VT2HUOXIANG.items()}
 
 # 数据长度限制映射
 INTERVAL_VT2HUOXIANG: Dict[Interval, int] = {
@@ -77,12 +76,12 @@ class HuoXiangGateway(BaseGateway):
     """
     default_name: str = "HUOXIANG"
 
-    default_setting = {
+    default_setting: dict = {
         "API Key": "",
         "Secret Key": "",
         "服务器": ["HuoXiang-Server"]
     }
-    exchanges = [Exchange.HUOXIANG]
+    exchanges: List[Exchange] = [Exchange.HUOXIANG]
 
     def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
         """构造函数"""
@@ -164,7 +163,7 @@ class HuoXiangRestApi(RestClient):
 
     def sign(self, request: Request) -> Request:
         """签名鉴权"""
-        timestamp = generate_time()
+        timestamp: int = generate_time()
         request.data = json.dumps(request.data)
         if request.params:
             path: str = request.path + "?" + urlencode(request.params)
@@ -193,7 +192,7 @@ class HuoXiangRestApi(RestClient):
         """连接REST服务器"""
         self.key = key
         self.secret = secret
-        self.connect_time = (
+        self.connect_time: int = (
             int(datetime.now().strftime("%y%m%d%H%M%S")) * self.order_count
         )
 
@@ -259,15 +258,8 @@ class HuoXiangRestApi(RestClient):
             self.gateway_name
         )
 
-        cmd = 0
-        # if req.direction == Direction.LONG and req.type == OrderType.MARKET:
-        #     cmd = 0
-        # elif req.direction == Direction.LONG and req.type == OrderType.LIMIT:
-        #     cmd = 2
-        # elif req.direction == Direction.SHORT and req.type == OrderType.MARKET:
-        #     cmd = 1
-        # elif req.direction == Direction.SHORT and req.type == OrderType.LIMIT:
-        #     cmd = 3
+        cmd: int = 0
+
         if req.direction == Direction.LONG and req.price == 0:
             cmd = 0
         elif req.direction == Direction.LONG and req.price > 0:
@@ -368,7 +360,7 @@ class HuoXiangRestApi(RestClient):
 
             # 合约累计净开仓量
             if order_info["cmd"] < 2:
-                volume = order.volume
+                volume: float = order.volume
                 if order_info["cmd"] == 1:
                     volume *= -1
                 if order.vt_symbol in self.positions:
@@ -398,7 +390,7 @@ class HuoXiangRestApi(RestClient):
 
     def on_update_position(self, trade: TradeData) -> None:
         """持仓更新回报"""
-        volume = trade.volume
+        volume: float = trade.volume
         if trade.direction == Direction.SHORT:
             volume *= -1
 
@@ -429,13 +421,13 @@ class HuoXiangRestApi(RestClient):
             return
 
         for order_info in packet["data"]:
-            direction = Direction.LONG
+            direction: Direction = Direction.LONG
             if order_info["cmd"] == 1:
-                direction = Direction.SHORT
+                direction: Direction = Direction.SHORT
 
-            offset = Offset.OPEN
+            offset: Offset = Offset.OPEN
             if order_info["entry"] == 1:
-                offset = Offset.CLOSE
+                offset: Offset = Offset.CLOSE
 
             if order_info["comment"]:
                 orderid: str = order_info["comment"]
@@ -528,24 +520,24 @@ class HuoXiangRestApi(RestClient):
         )
 
         if resp.status_code != 200:
-            msg = f"获取历史数据失败，状态码：{resp.status_code}，信息：{resp.text}"
+            msg: str = f"获取历史数据失败，状态码：{resp.status_code}，信息：{resp.text}"
             self.gateway.write_log(msg)
         else:
             data: dict = resp.json()
-            if data['code'] == 1 and data["data"]:
+            if data["code"] == 1 and data["data"]:
                 for bar_list in data["data"]:
                     # id, open, high, low, close, count = bar_list
-                    dt = parse_timestamp(bar_list['id'])
+                    dt = parse_timestamp(bar_list["id"])
                     bar = BarData(
                         symbol=req.symbol,
                         exchange=req.exchange,
                         datetime=dt,
                         interval=req.interval,
-                        volume=bar_list['count'],
-                        open_price=bar_list['open'],
-                        high_price=bar_list['high'],
-                        low_price=bar_list['low'],
-                        close_price=bar_list['close'],
+                        volume=bar_list["count"],
+                        open_price=bar_list["open"],
+                        high_price=bar_list["high"],
+                        low_price=bar_list["low"],
+                        close_price=bar_list["close"],
                         gateway_name=self.gateway_name
                     )
                     buf[bar.datetime] = bar
@@ -574,15 +566,15 @@ class HuoXiangRestApi(RestClient):
         else:
             order_id: str = ticket
 
-        direction = Direction.SHORT
-        types = OrderType.MARKET
-        status = Status.NOTTRADED
+        direction: Direction = Direction.SHORT
+        types: OrderType = OrderType.MARKET
+        status: Status = Status.NOTTRADED
         if data["cmd"] % 2 == 0:
-            direction = Direction.LONG
+            direction: Direction = Direction.LONG
         if data["cmd"] > 1:
-            types = OrderType.LIMIT
+            types: OrderType = OrderType.LIMIT
 
-        order = OrderData(
+        order: OrderData = OrderData(
             exchange=Exchange.HUOXIANG,
             symbol=data["symbol"],
             orderid=order_id,
@@ -610,25 +602,25 @@ class HuoXiangRestApi(RestClient):
             order_id: str = ticket
 
         # 解析委托
-        types = OrderType.MARKET
+        types: OrderType = OrderType.MARKET
         if data["cmd"] > 1:
-            types = OrderType.LIMIT
+            types: OrderType = OrderType.LIMIT
 
         if oc == "open":
-            offset = Offset.OPEN
-            status = Status.NOTTRADED
+            offset: Offset = Offset.OPEN
+            status: Status = Status.NOTTRADED
             if data["cmd"] % 2 == 0:
-                direction = Direction.LONG
+                direction: Direction = Direction.LONG
             else:
-                direction = Direction.SHORT
+                direction: Direction = Direction.SHORT
 
         elif oc == "close":
-            offset = Offset.CLOSE
-            status = Status.ALLTRADED
+            offset: Offset = Offset.CLOSE
+            status: Status = Status.ALLTRADED
             if data["cmd"] % 2 == 0:
-                direction = Direction.SHORT
+                direction: Direction = Direction.SHORT
             else:
-                direction = Direction.LONG
+                direction: Direction = Direction.LONG
 
         order: OrderData = OrderData(
             exchange=Exchange.HUOXIANG,
@@ -710,7 +702,7 @@ class HuoXiangWebsocketApi(WebsocketClient):
         self.subscribed[req.vt_symbol] = req
 
         # 订阅合约
-        symbols = []
+        symbols: List[SubscribeRequest] = []
         for v in self.subscribed.values():
             symbols.append(v.symbol)
 
@@ -806,11 +798,10 @@ class HuoXiangWebsocketApi(WebsocketClient):
 
 def generate_signature(msg: str, secret_key: str) -> bytes:
     """生成签名"""
-    # return base64.b64encode(hmac.new(secret_key.encode(), msg.encode(), hashlib.sha256).digest())
     return hmac.new(secret_key.encode(), msg.encode(), digestmod=hashlib.sha256).hexdigest()
 
 
-def generate_time():
+def generate_time() -> int:
     return int(time.time())
 
 
