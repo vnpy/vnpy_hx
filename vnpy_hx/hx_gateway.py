@@ -1,4 +1,3 @@
-""""""
 import hashlib
 import hmac
 import json
@@ -71,7 +70,7 @@ ORDERCMD: List[str] = ["BUY", "SELL", "BUYLIMIT", "SELLLIMIT", "BUYSTOP", "SELLS
 symbol_contract_map: Dict[str, ContractData] = {}
 
 
-class HuoXiangGateway(BaseGateway):
+class HxGateway(BaseGateway):
     """
     VeighNa用于对接火象的交易接口。
     """
@@ -140,11 +139,11 @@ class HuoXiangGateway(BaseGateway):
 class HuoXiangRestApi(RestClient):
     """火象restapi接口"""
 
-    def __init__(self, gateway: HuoXiangGateway) -> None:
+    def __init__(self, gateway: HxGateway) -> None:
         """构造函数"""
         super().__init__()
 
-        self.gateway: HuoXiangGateway = gateway
+        self.gateway: HxGateway = gateway
         self.gateway_name: str = gateway.gateway_name
 
         self.key: str = ""
@@ -656,11 +655,11 @@ class HuoXiangRestApi(RestClient):
 class HuoXiangWebsocketApi(WebsocketClient):
     """火象websocket接口"""
 
-    def __init__(self, gateway: HuoXiangGateway) -> None:
+    def __init__(self, gateway: HxGateway) -> None:
         """构造函数"""
         super().__init__()
 
-        self.gateway: HuoXiangGateway = gateway
+        self.gateway: HxGateway = gateway
         self.gateway_name: str = gateway.gateway_name
 
         self.subscribed: Dict[str, SubscribeRequest] = {}

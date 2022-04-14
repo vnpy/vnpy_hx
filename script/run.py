@@ -2,14 +2,7 @@ from vnpy.event import EventEngine
 from vnpy.trader.engine import MainEngine
 from vnpy.trader.ui import MainWindow, create_qapp
 
-#from vnpy.gateway.huoxiang.huoxiang_gateway import HuoXiangGateway
-
-from huoxiang_gateway import HuoXiangGateway
-
-from vnpy_ctastrategy import CtaStrategyApp
-from vnpy_ctabacktester import CtaBacktesterApp
-from vnpy_datamanager import DataManagerApp
-from vnpy_algotrading import AlgoTradingApp
+from vnpy_hx import HxGateway
 
 
 def main():
@@ -18,15 +11,8 @@ def main():
 
     event_engine = EventEngine()
     main_engine = MainEngine(event_engine)
-
-    main_engine.add_app(DataManagerApp)
-
-    main_engine.add_app(AlgoTradingApp)
-    main_engine.add_app(CtaBacktesterApp)
-    main_engine.add_app(CtaStrategyApp)
-    main_engine.add_gateway(HuoXiangGateway)
+    main_engine.add_gateway(HxGateway)
     
-
     main_window = MainWindow(main_engine, event_engine)
     main_window.showMaximized()
 

@@ -1,4 +1,4 @@
-# VeighNa框架的HuoXiang底层接口
+# VeighNa框架的火象交易接口
 
 <p align="center">
   <img src ="https://vnpy.oss-cn-shanghai.aliyuncs.com/vnpy-logo.png"/>
@@ -6,14 +6,14 @@
 
 <p align="center">
     <img src ="https://img.shields.io/badge/version-1.0.0-blueviolet.svg"/>
-    <img src ="https://img.shields.io/badge/platform-windows|linux｜macos-yellow.svg"/>
+    <img src ="https://img.shields.io/badge/platform-windows|linux|macos-yellow.svg"/>
     <img src ="https://img.shields.io/badge/python-3.7|3.8|3.9|3.10-blue.svg" />
     <img src ="https://img.shields.io/github/license/vnpy/vnpy.svg?color=orange"/>
 </p>
 
 ## 说明
 
-基于火象交易API开发的huoxiang接口，支持期货、外汇仿真交易。
+基于火象交易API开发，支持期货和外汇仿真交易。
 
 ## 安装
 
@@ -40,7 +40,7 @@ from vnpy.event import EventEngine
 from vnpy.trader.engine import MainEngine
 from vnpy.trader.ui import MainWindow, create_qapp
 
-from vnpy_huoxiang import HuoXiangGateway
+from vnpy_hx import HxGateway
 
 
 def main():
@@ -49,7 +49,7 @@ def main():
 
     event_engine = EventEngine()
     main_engine = MainEngine(event_engine)
-    main_engine.add_gateway(HuoXiangGateway)
+    main_engine.add_gateway(HxGateway)
     
     main_window = MainWindow(main_engine, event_engine)
     main_window.showMaximized()

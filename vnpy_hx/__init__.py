@@ -23,10 +23,10 @@
 
 import importlib_metadata
 
-from .huoxiang_gateway import HuoXiangGateway
+from .hx_gateway import HxGateway
 
 
 try:
-    __version__ = importlib_metadata.version("vnpy_huoxiang")
+    __version__ = importlib_metadata.version("vnpy_hx")
 except importlib_metadata.PackageNotFoundError:
     __version__ = "dev"
