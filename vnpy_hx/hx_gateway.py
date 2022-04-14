@@ -52,7 +52,9 @@ WEBSOCKET_HOST: str = "wss://demotrade.alphazone-data.cn/ws"
 # 合约类型映射
 PRODUCTTYPE_HX2VT = {
     "FOREX": Product.FOREX,
-    "期货": Product.FUTURES
+    "期货": Product.FUTURES,
+    "美股": Product.EQUITY,
+    "指数": Product.INDEX
 }
 
 # 数据长度限制映射
