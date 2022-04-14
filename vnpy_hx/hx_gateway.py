@@ -39,22 +39,21 @@ from vnpy.trader.constant import (
 from vnpy_rest import Request, RestClient, Response
 from vnpy_websocket import WebsocketClient
 
+
 # 中国时区
 CHINA_TZ: timezone = timezone("Asia/Shanghai")
 
 # REST API地址
 REST_HOST: str = "https://demotrade.alphazone-data.cn"
-# REST_HOST: str = "https://139.224.34.155:52223"
 
 # Websocket API地址
-PUBLIC_WEBSOCKET_HOST: str = "wss://demotrade.alphazone-data.cn/ws"
+WEBSOCKET_HOST: str = "wss://demotrade.alphazone-data.cn/ws"
 
-# 商品类型映射
-PRODUCTTYPE_VT2HX = {
-    Product.FOREX: "FOREX"
+# 合约类型映射
+PRODUCTTYPE_HX2VT = {
+    "FOREX": Product.FOREX,
+    "期货": Product.FUTURES
 }
-
-PRODUCTTYPE_HX2VT = {v: k for k, v in PRODUCTTYPE_VT2HX.items()}
 
 # 数据长度限制映射
 INTERVAL_VT2HX: Dict[Interval, int] = {
@@ -63,32 +62,29 @@ INTERVAL_VT2HX: Dict[Interval, int] = {
     Interval.DAILY: 1440,
 }
 
-# 下单类型
-ORDERCMD: List[str] = ["BUY", "SELL", "BUYLIMIT", "SELLLIMIT", "BUYSTOP", "SELLSTOP", "BALANCE", "CREDIT"]
 
 # 合约数据全局缓存字典
 symbol_contract_map: Dict[str, ContractData] = {}
 
 
 class HxGateway(BaseGateway):
-    """
-    VeighNa用于对接火象的交易接口。
-    """
+    """VeighNa用于对接火象的交易接口"""
+
     default_name: str = "HX"
 
     default_setting = {
         "API Key": "",
-        "Secret Key": "",
-        "服务器": ["Hx-Server"]
+        "Secret Key": ""
     }
-    exchanges = [Exchange.HX]
+
+    exchanges = [Exchange.OTC]
 
     def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
         """构造函数"""
         super().__init__(event_engine, gateway_name)
 
-        self.rest_api: "HxRestApi" = HxRestApi(self)
-        self.ws_api: "HxWebsocketApi" = HxWebsocketApi(self)
+        self.rest_api: HxRestApi = HxRestApi(self)
+        self.ws_api: HxWebsocketApi = HxWebsocketApi(self)
 
         self.orders: Dict[str, OrderData] = {}
 
@@ -96,7 +92,8 @@ class HxGateway(BaseGateway):
         """连接交易接口"""
         key: str = setting["API Key"]
         secret: str = setting["Secret Key"]
-        self.rest_api.connect(key, secret, 3)
+
+        self.rest_api.connect(key, secret)
         self.ws_api.connect(key, secret)
 
     def subscribe(self, req: SubscribeRequest) -> None:
@@ -128,15 +125,6 @@ class HxGateway(BaseGateway):
         self.rest_api.stop()
         self.ws_api.stop()
 
-    def on_order(self, order: OrderData) -> None:
-        """推送委托数据"""
-        self.orders[order.orderid] = copy(order)
-        super().on_order(order)
-
-    def get_order(self, orderid: str) -> OrderData:
-        """查询委托数据"""
-        return self.orders.get(orderid, None)
-
 
 class HxRestApi(RestClient):
     """火象restapi接口"""
@@ -150,7 +138,6 @@ class HxRestApi(RestClient):
 
         self.key: str = ""
         self.secret: str = ""
-        self.simulated: bool = False
 
         # 累计开仓量
         self.positions: Dict[str, PositionData] = {}
@@ -166,16 +153,22 @@ class HxRestApi(RestClient):
     def sign(self, request: Request) -> Request:
         """签名鉴权"""
         timestamp = generate_time()
+
         request.data = json.dumps(request.data)
+
         if request.params:
             path: str = request.path + "?" + urlencode(request.params)
         else:
             path: str = request.path
+
         if len(path) == 0:
             path = "/"
+
         msg: str = str(timestamp) + path
         msg += request.data
+
         signature: bytes = generate_signature(msg, self.secret)
+
         # 添加请求头
         request.headers = {
             "ACCESS-KEY": self.key,
@@ -185,12 +178,7 @@ class HxRestApi(RestClient):
         }
         return request
 
-    def connect(
-        self,
-        key: str,
-        secret: str,
-        session_number: int
-    ) -> None:
+    def connect(self, key: str, secret: str) -> None:
         """连接REST服务器"""
         self.key = key
         self.secret = secret
@@ -199,7 +187,8 @@ class HxRestApi(RestClient):
         )
 
         self.init(REST_HOST)
-        self.start(session_number)
+        self.start()
+
         self.gateway.write_log("REST API启动成功")
 
         self.query_time()
@@ -308,22 +297,6 @@ class HxRestApi(RestClient):
             path=path,
             data=data,
             callback=self.on_cancel_order,
-        )
-
-    def modify_order(self, data) -> None:
-        """修改订单"""
-        path: str = "/v2/order/modify"
-
-        self.add_request(
-            method="POST",
-            path=path,
-            data={
-                "tp": data["tp"],
-                "sl": data["sl"],
-                "ticket": data["ticket"],
-                "open_price": data["open_price"],
-            },
-            callback=self.on_modify_order,
         )
 
     def on_query_time(self, packet: dict, request: Request) -> None:
@@ -437,7 +410,7 @@ class HxRestApi(RestClient):
 
             trade: TradeData = TradeData(
                 symbol=order_info["symbol"],
-                exchange=Exchange.HX,
+                exchange=Exchange.OTC,
                 orderid=orderid,
                 tradeid=order_info["deal_id"],
                 direction=direction,
@@ -483,12 +456,6 @@ class HxRestApi(RestClient):
             self.query_account()
             self.gateway.write_log("平仓委托成功")
 
-    def on_modify_order(self, packet: dict, request: Request) -> None:
-        """订单修改回报"""
-        if packet["code"] == 1:
-            self.query_order()
-        self.gateway.write_log("修改订单成功")
-
     def on_error(
             self,
             exception_type: type,
@@ -508,11 +475,13 @@ class HxRestApi(RestClient):
         """查询历史数据"""
         buf: Dict[datetime, BarData] = {}
         path: str = "/v2/candles"
+
         # 创建查询参数
         params: dict = {
             "symbol": req.symbol,
             "bar": INTERVAL_VT2HX[req.interval]
         }
+
         # 从服务器获取响应
         resp: Response = self.request(
             "POST",
@@ -561,6 +530,7 @@ class HxRestApi(RestClient):
         """解析委托回报数据"""
         comment: str = str(data["comment"])
         ticket: str = str(data["ticket"])
+
         if comment:
             order_id: str = comment
             self.comment_ticket_map[order_id] = ticket
@@ -570,13 +540,14 @@ class HxRestApi(RestClient):
         direction = Direction.SHORT
         types = OrderType.MARKET
         status = Status.NOTTRADED
+
         if data["cmd"] % 2 == 0:
             direction = Direction.LONG
         if data["cmd"] > 1:
             types = OrderType.LIMIT
 
         order = OrderData(
-            exchange=Exchange.HX,
+            exchange=Exchange.OTC,
             symbol=data["symbol"],
             orderid=order_id,
             price=data["open_price"],
@@ -624,7 +595,7 @@ class HxRestApi(RestClient):
                 direction = Direction.LONG
 
         order: OrderData = OrderData(
-            exchange=Exchange.HX,
+            exchange=Exchange.OTC,
             symbol=data["symbol"],
             orderid=order_id,
             price=data["price"],
@@ -640,7 +611,7 @@ class HxRestApi(RestClient):
 
         trade: TradeData = TradeData(
             symbol=data["symbol"],
-            exchange=Exchange.HX,
+            exchange=Exchange.OTC,
             orderid=order_id,
             tradeid=data["deal_id"],
             direction=direction,
@@ -682,7 +653,7 @@ class HxWebsocketApi(WebsocketClient):
         self.secret = secret
         self.connect_time = int(datetime.now().strftime("%y%m%d%H%M%S"))
 
-        self.init(PUBLIC_WEBSOCKET_HOST, "", 0, 20)
+        self.init(WEBSOCKET_HOST, "", 0, 20)
         self.start()
 
     def query_contract(self) -> None:
@@ -744,7 +715,7 @@ class HxWebsocketApi(WebsocketClient):
         tick: TickData = TickData(
             gateway_name=self.gateway_name,
             symbol=d["symbol"],
-            exchange=Exchange.HX,
+            exchange=Exchange.OTC,
             datetime=parse_timestamp(d["id"]),
 
             name="",
@@ -766,7 +737,7 @@ class HxWebsocketApi(WebsocketClient):
             size: float = d["size"]
             contract: ContractData = ContractData(
                 symbol=symbol,
-                exchange=Exchange.HX,
+                exchange=Exchange.OTC,
                 name=symbol,
                 product=PRODUCTTYPE_HX2VT.get(d["group"], Product.FUTURES),
                 size=size,
@@ -799,11 +770,11 @@ class HxWebsocketApi(WebsocketClient):
 
 def generate_signature(msg: str, secret_key: str) -> bytes:
     """生成签名"""
-    # return base64.b64encode(hmac.new(secret_key.encode(), msg.encode(), hashlib.sha256).digest())
     return hmac.new(secret_key.encode(), msg.encode(), digestmod=hashlib.sha256).hexdigest()
 
 
-def generate_time():
+def generate_time() -> int:
+    """生成当前时间（整数）"""
     return int(time.time())
 
 
