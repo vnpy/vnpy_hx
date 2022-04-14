@@ -50,14 +50,14 @@ REST_HOST: str = "https://demotrade.alphazone-data.cn"
 PUBLIC_WEBSOCKET_HOST: str = "wss://demotrade.alphazone-data.cn/ws"
 
 # 商品类型映射
-PRODUCTTYPE_VT2HUOXIANG = {
+PRODUCTTYPE_VT2HX = {
     Product.FOREX: "FOREX"
 }
 
-PRODUCTTYPE_HUOXIANG2VT = {v: k for k, v in PRODUCTTYPE_VT2HUOXIANG.items()}
+PRODUCTTYPE_HX2VT = {v: k for k, v in PRODUCTTYPE_VT2HX.items()}
 
 # 数据长度限制映射
-INTERVAL_VT2HUOXIANG: Dict[Interval, int] = {
+INTERVAL_VT2HX: Dict[Interval, int] = {
     Interval.MINUTE: 1,
     Interval.HOUR: 60,
     Interval.DAILY: 1440,
@@ -74,20 +74,22 @@ class HxGateway(BaseGateway):
     """
     VeighNa用于对接火象的交易接口。
     """
-    default_name: str = "HUOXIANG"
+    default_name: str = "HX"
 
     default_setting = {
         "API Key": "",
         "Secret Key": "",
-        "服务器": ["HuoXiang-Server"]
+        "服务器": ["Hx-Server"]
     }
-    exchanges = [Exchange.HUOXIANG]
+    exchanges = [Exchange.HX]
 
     def __init__(self, event_engine: EventEngine, gateway_name: str) -> None:
         """构造函数"""
         super().__init__(event_engine, gateway_name)
-        self.rest_api: "HuoXiangRestApi" = HuoXiangRestApi(self)
-        self.ws_api: "HuoXiangWebsocketApi" = HuoXiangWebsocketApi(self)
+
+        self.rest_api: "HxRestApi" = HxRestApi(self)
+        self.ws_api: "HxWebsocketApi" = HxWebsocketApi(self)
+
         self.orders: Dict[str, OrderData] = {}
 
     def connect(self, setting: dict) -> None:
@@ -136,7 +138,7 @@ class HxGateway(BaseGateway):
         return self.orders.get(orderid, None)
 
 
-class HuoXiangRestApi(RestClient):
+class HxRestApi(RestClient):
     """火象restapi接口"""
 
     def __init__(self, gateway: HxGateway) -> None:
@@ -435,7 +437,7 @@ class HuoXiangRestApi(RestClient):
 
             trade: TradeData = TradeData(
                 symbol=order_info["symbol"],
-                exchange=Exchange.HUOXIANG,
+                exchange=Exchange.HX,
                 orderid=orderid,
                 tradeid=order_info["deal_id"],
                 direction=direction,
@@ -509,7 +511,7 @@ class HuoXiangRestApi(RestClient):
         # 创建查询参数
         params: dict = {
             "symbol": req.symbol,
-            "bar": INTERVAL_VT2HUOXIANG[req.interval]
+            "bar": INTERVAL_VT2HX[req.interval]
         }
         # 从服务器获取响应
         resp: Response = self.request(
@@ -574,7 +576,7 @@ class HuoXiangRestApi(RestClient):
             types = OrderType.LIMIT
 
         order = OrderData(
-            exchange=Exchange.HUOXIANG,
+            exchange=Exchange.HX,
             symbol=data["symbol"],
             orderid=order_id,
             price=data["open_price"],
@@ -622,7 +624,7 @@ class HuoXiangRestApi(RestClient):
                 direction = Direction.LONG
 
         order: OrderData = OrderData(
-            exchange=Exchange.HUOXIANG,
+            exchange=Exchange.HX,
             symbol=data["symbol"],
             orderid=order_id,
             price=data["price"],
@@ -638,7 +640,7 @@ class HuoXiangRestApi(RestClient):
 
         trade: TradeData = TradeData(
             symbol=data["symbol"],
-            exchange=Exchange.HUOXIANG,
+            exchange=Exchange.HX,
             orderid=order_id,
             tradeid=data["deal_id"],
             direction=direction,
@@ -652,7 +654,7 @@ class HuoXiangRestApi(RestClient):
         return order, trade
 
 
-class HuoXiangWebsocketApi(WebsocketClient):
+class HxWebsocketApi(WebsocketClient):
     """火象websocket接口"""
 
     def __init__(self, gateway: HxGateway) -> None:
@@ -742,7 +744,7 @@ class HuoXiangWebsocketApi(WebsocketClient):
         tick: TickData = TickData(
             gateway_name=self.gateway_name,
             symbol=d["symbol"],
-            exchange=Exchange.HUOXIANG,
+            exchange=Exchange.HX,
             datetime=parse_timestamp(d["id"]),
 
             name="",
@@ -764,9 +766,9 @@ class HuoXiangWebsocketApi(WebsocketClient):
             size: float = d["size"]
             contract: ContractData = ContractData(
                 symbol=symbol,
-                exchange=Exchange.HUOXIANG,
+                exchange=Exchange.HX,
                 name=symbol,
-                product=PRODUCTTYPE_HUOXIANG2VT.get(d["group"], Product.FUTURES),
+                product=PRODUCTTYPE_HX2VT.get(d["group"], Product.FUTURES),
                 size=size,
                 pricetick=d['point'],
                 min_volume=0.01,
