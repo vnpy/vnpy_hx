@@ -4,7 +4,6 @@ import json
 import sys
 import time
 from copy import copy
-from pytz import timezone
 from datetime import datetime
 from urllib.parse import urlencode
 from typing import Dict, List, Tuple
@@ -35,13 +34,14 @@ from vnpy.trader.constant import (
     Status,
     Interval
 )
+from vnpy.trader.utility import ZoneInfo
 
 from vnpy_rest import Request, RestClient, Response
 from vnpy_websocket import WebsocketClient
 
 
 # 中国时区
-CHINA_TZ: timezone = timezone("Asia/Shanghai")
+CHINA_TZ = ZoneInfo("Asia/Shanghai")
 
 # REST API地址
 REST_HOST: str = "https://demotrade.alphazone-data.cn"
@@ -794,7 +794,7 @@ def parse_timestamp(timestamp: str) -> datetime:
 def parse_time(string: str) -> datetime:
     """解析回报时间"""
     dt: datetime = datetime.strptime(string, "%Y-%m-%d %H:%M:%S")
-    return CHINA_TZ.localize(dt)
+    return dt.replace(tzinfo=CHINA_TZ)
 
 
 def get_float_value(data: dict, key: str) -> float:
